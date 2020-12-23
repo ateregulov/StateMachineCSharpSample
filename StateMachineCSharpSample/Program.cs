@@ -10,32 +10,29 @@ public class Program
         Process p = new Process(order);
 
         Console.WriteLine("Init state = " + p.GetCurrentState);
-        Console.WriteLine("Object: {0}, command: {1}, result: {2}", "Order", OrderCommand.Cooking, p.OrderMove(OrderCommand.Cooking));
+        Console.WriteLine("Object: {0}, command: {1}, result: {2}", "Order", OrderCommands.Cooking, p.OrderMove(OrderCommands.Cooking));
 
-
-        Console.WriteLine("Object: {0}, command: {1}, result: {2}", "Order", OrderCommand.Complete, p.OrderMove(OrderCommand.Complete)); // here we are told that not all the dishes ready
+        Console.WriteLine("Object: {0}, command: {1}, result: {2}", "Order", OrderCommands.Complete, p.OrderMove(OrderCommands.Complete)); // here we are told that not all the dishes ready
 
         // continue cooking dishes
-        Console.WriteLine("Object: {0}, command: {1}, result: {2}", "Dish", DishCommand.Cooking, p.DishMove(DishCommand.Cooking));
-        Console.WriteLine("Object: {0}, command: {1}, result: {2}", "Dish", DishCommand.Complete, p.DishMove(DishCommand.Complete));
+        Console.WriteLine("Object: {0}, command: {1}, result: {2}", "Dish", DishCommands.Cooking, p.DishMove(DishCommands.Cooking));
+        Console.WriteLine("Object: {0}, command: {1}, result: {2}", "Dish", DishCommands.Complete, p.DishMove(DishCommands.Complete));
 
         // try to complete one more
-        Console.WriteLine("Object: {0}, command: {1}, result: {2}", "Order", OrderCommand.Complete, p.OrderMove(OrderCommand.Complete));
+        Console.WriteLine("Object: {0}, command: {1}, result: {2}", "Order", OrderCommands.Complete, p.OrderMove(OrderCommands.Complete));
         // failed
 
         // cooking one more dish
-        Console.WriteLine("Object: {0}, command: {1}, result: {2}", "Dish", DishCommand.Cooking, p.DishMove(DishCommand.Cooking));
-        Console.WriteLine("Object: {0}, command: {1}, result: {2}", "Dish", DishCommand.Complete, p.DishMove(DishCommand.Complete));
+        Console.WriteLine("Object: {0}, command: {1}, result: {2}", "Dish", DishCommands.Cooking, p.DishMove(DishCommands.Cooking));
+        Console.WriteLine("Object: {0}, command: {1}, result: {2}", "Dish", DishCommands.Complete, p.DishMove(DishCommands.Complete));
 
+        // try to complete
+        Console.WriteLine("Object: {0}, command: {1}, result: {2}", "Order", OrderCommands.Complete, p.OrderMove(OrderCommands.Complete));
 
-        // try to complete 
-        Console.WriteLine("Object: {0}, command: {1}, result: {2}", "Order", OrderCommand.Complete, p.OrderMove(OrderCommand.Complete));
-
-        
-        Console.WriteLine("Object: {0}, command: {1}, result: {2}", "Order", OrderCommand.ToShipping, p.OrderMove(OrderCommand.ToShipping));
+        Console.WriteLine("Object: {0}, command: {1}, result: {2}", "Order", OrderCommands.ToShipping, p.OrderMove(OrderCommands.ToShipping));
         // failed to handle shipping
-                
-        Console.WriteLine("Object: {0}, command: {1}, result: {2}", "Order", OrderCommand.ToHallDelivered, p.OrderMove(OrderCommand.ToHallDelivered));
+
+        Console.WriteLine("Object: {0}, command: {1}, result: {2}", "Order", OrderCommands.ToHallDelivered, p.OrderMove(OrderCommands.ToHallDelivered));
         // then successfully pass the ordet to hall
 
         Console.ReadLine();
@@ -54,103 +51,47 @@ public class Program
     }
 }
 
-
-
 public class Process
 {
     // initial state, valid commands and the transitions conditions
-    class OrderStateTransition
-    {
-        readonly OrderState CurrentState;
-        readonly OrderCommand Command;
-        public readonly OrderCondition? Condition;
 
-        public OrderStateTransition(OrderState currentState, OrderCommand command, OrderCondition? condition)
-        {
-            CurrentState = currentState;
-            Command = command;
-            Condition = condition;
-
-        }
-
-        public override int GetHashCode()
-        {
-            return 17 + 37 * CurrentState.GetHashCode() + 73 * Command.GetHashCode();
-        }
-
-        public override bool Equals(object obj)
-        {
-            OrderStateTransition other = obj as OrderStateTransition;
-            return other != null && this.CurrentState == other.CurrentState && this.Command == other.Command;
-        }
-    }
-
-    class DishStateTransition
-    {
-        readonly DishState CurrentState;
-        readonly DishCommand Command;
-        public readonly DishCondition? Condition;
-
-        public DishStateTransition(DishState currentState, DishCommand command, DishCondition? condition)
-        {
-            CurrentState = currentState;
-            Command = command;
-            Condition = condition;
-        }
-
-        public override int GetHashCode()
-        {
-            return 17 + 37 * CurrentState.GetHashCode() + 73 * Command.GetHashCode();
-        }
-
-        public override bool Equals(object obj)
-        {
-            DishStateTransition other = obj as DishStateTransition;
-            return other != null && this.CurrentState == other.CurrentState && this.Command == other.Command;
-        }
-    }
-
-
-
-    Dictionary<OrderStateTransition, OrderState> orderTransitions;
-    Dictionary<DishStateTransition, DishState> dishTransitions;
-    Order order;
+    private Dictionary<OrderStateTransition, OrderStates> orderTransitions;
+    private Dictionary<DishStateTransition, DishStates> dishTransitions;
+    private Order order;
 
     public Process(Order order)
     {
         this.order = order;
-        order.State = order.Time == null ? OrderState.New : OrderState.InQueue;
+        order.State = order.Time == null ? OrderStates.New : OrderStates.InQueue;
 
         foreach (var dish in order.Dishes)
         {
-            dish.State = DishState.New;
+            dish.State = DishStates.New;
         }
 
         //filling dictionaries of transitions for meals and orders
-
-        orderTransitions = new Dictionary<OrderStateTransition, OrderState>
+        orderTransitions = new Dictionary<OrderStateTransition, OrderStates>
         {
-            { new OrderStateTransition(OrderState.InQueue, OrderCommand.ToNew, OrderCondition.TimeHasCome), OrderState.New },
-            { new OrderStateTransition(OrderState.New, OrderCommand.Cooking, null), OrderState.Cooking },
-            { new OrderStateTransition(OrderState.Cooking, OrderCommand.Complete, OrderCondition.AllDishesArePrepared), OrderState.Complete },
-            { new OrderStateTransition(OrderState.Complete, OrderCommand.ToShipping, OrderCondition.ReadyForShippingOrHall), OrderState.Shipping },
-            { new OrderStateTransition(OrderState.Shipping, OrderCommand.ToShippingDelivered, null), OrderState.DeliveredToShippingAddress },
-            { new OrderStateTransition(OrderState.Complete, OrderCommand.ToHallDelivered, OrderCondition.ReadyForShippingOrHall), OrderState.DeliveredToHall }
+            { new OrderStateTransition(OrderStates.InQueue, OrderCommands.ToNew, OrderConditions.TimeHasCome), OrderStates.New },
+            { new OrderStateTransition(OrderStates.New, OrderCommands.Cooking, null), OrderStates.Cooking },
+            { new OrderStateTransition(OrderStates.Cooking, OrderCommands.Complete, OrderConditions.AllDishesArePrepared), OrderStates.Complete },
+            { new OrderStateTransition(OrderStates.Complete, OrderCommands.ToShipping, OrderConditions.ReadyForShippingOrHall), OrderStates.Shipping },
+            { new OrderStateTransition(OrderStates.Shipping, OrderCommands.ToShippingDelivered, null), OrderStates.DeliveredToShippingAddress },
+            { new OrderStateTransition(OrderStates.Complete, OrderCommands.ToHallDelivered, OrderConditions.ReadyForShippingOrHall), OrderStates.DeliveredToHall }
         };
 
-        dishTransitions = new Dictionary<DishStateTransition, DishState>
+        dishTransitions = new Dictionary<DishStateTransition, DishStates>
         {
-            {new DishStateTransition(DishState.InQueue, DishCommand.ToNew, DishCondition.TimeHasCome), DishState.New },
-            {new DishStateTransition(DishState.New, DishCommand.Cooking, null), DishState.Cooking },
-            {new DishStateTransition(DishState.Cooking, DishCommand.Complete, null), DishState.Ready },
+            {new DishStateTransition(DishStates.InQueue, DishCommands.ToNew, DishConditions.TimeHasCome), DishStates.New },
+            {new DishStateTransition(DishStates.New, DishCommands.Cooking, null), DishStates.Cooking },
+            {new DishStateTransition(DishStates.Cooking, DishCommands.Complete, null), DishStates.Ready },
         };
-
     }
 
-    public string OrderMove(OrderCommand command)
+    public string OrderMove(OrderCommands command)
     {
         OrderStateTransition transition = new OrderStateTransition(order.State, command, null);
-        OrderState nextState;
+        OrderStates nextState;
         if (!orderTransitions.TryGetValue(transition, out nextState))
         {
             return "Incorrect transition: " + order.State + " -> " + command;
@@ -185,8 +126,8 @@ public class Process
                     break;
 
                 case "ReadyForShippingOrHall":
-                    if (nextState == OrderState.Shipping && order.Destination == DestinationRoute.Shipping
-                        || nextState == OrderState.DeliveredToHall && order.Destination == DestinationRoute.ToHall
+                    if (nextState == OrderStates.Shipping && order.Destination == DestinationRoute.Shipping
+                        || nextState == OrderStates.DeliveredToHall && order.Destination == DestinationRoute.ToHall
                         )
                     {
                         order.State = nextState;
@@ -198,6 +139,7 @@ public class Process
                     }
 
                     break;
+
                 default:
                     break;
             }
@@ -207,23 +149,17 @@ public class Process
             order.State = nextState;
         }
 
-
-
-
-
-
         return nextState.ToString() + message;
     }
 
-    public string DishMove(DishCommand command)
+    public string DishMove(DishCommands command)
     {
-        var dish = order.Dishes.Where(x => x.State != DishState.Ready).FirstOrDefault();
+        var dish = order.Dishes.Where(x => x.State != DishStates.Ready).FirstOrDefault();
 
         if (dish != null)
         {
-
             DishStateTransition transition = new DishStateTransition(dish.State, command, null);
-            DishState nextState;
+            DishStates nextState;
             if (!dishTransitions.TryGetValue(transition, out nextState))
             {
                 return "Wrong direction: " + dish.State + " -> " + command;
@@ -233,7 +169,6 @@ public class Process
 
             if (condition != null)
             {
-
                 switch (condition.ToString())
                 {
                     case "TimeHasCome":
@@ -241,7 +176,6 @@ public class Process
                         dish.State = nextState;
 
                         break;
-
 
                     default:
                         break;
@@ -260,7 +194,6 @@ public class Process
         }
     }
 
-
     public string GetCurrentState
     {
         get
@@ -269,87 +202,3 @@ public class Process
         }
     }
 }
-
-
-
-public enum OrderState
-{
-    InQueue,
-    New,
-    Cooking,
-    Complete,
-    Shipping,
-    DeliveredToHall,
-    DeliveredToShippingAddress
-}
-
-public enum DishState
-{
-    InQueue,
-    New,
-    Cooking,
-    Ready
-}
-
-public enum OrderCommand
-{
-    ToQueue,
-    ToNew,
-    Cooking,
-    Complete,
-    ToShipping,
-    ToShippingDelivered,
-    ToHallDelivered
-}
-
-public enum DishCommand
-{
-    ToQueue,
-    ToNew,
-    Cooking,
-    Complete
-}
-
-public enum DestinationRoute
-{
-    Shipping,
-    ToHall
-}
-
-public enum OrderCondition
-{
-    TimeHasCome,
-    AllDishesArePrepared,
-    ReadyForShippingOrHall
-}
-
-public enum DishCondition
-{
-    TimeHasCome,
-}
-
-public class Order
-{
-    public DestinationRoute Destination { get; set; }
-    public List<Dish> Dishes { get; set; }
-    public OrderState State { get; set; }
-    public DateTime? Time { get; set; }
-    public bool IsComplete
-    {
-        get
-        {
-            return Dishes.Select(x => x.State == DishState.Ready).Aggregate(true, (a, b) => (a && b));
-        }
-    }
-}
-
-public class Dish
-{
-    public DishState State { get; set; }
-}
-
-
-
-
-
-
